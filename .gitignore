@@ -1,0 +1,15 @@
+# Virtual Environment
+venv/
+
+# Database & Scraped Datasets
+*.db
+threads_scraper.db
+data/
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+
+# System files
+.DS_Store
