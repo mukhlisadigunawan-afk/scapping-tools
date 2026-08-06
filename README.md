@@ -44,18 +44,31 @@ scrapping-tools/
 
 ### Langkah Instalasi
 
-1. Buka direktori proyek:
+1. Clone repo dan install dependency (buat `venv`, install package, install browser Chromium):
    ```bash
-   cd /Users/mac/Documents/scrapping-tools
+   git clone https://github.com/mukhlisadigunawan-afk/scapping-tools.git
+   cd scapping-tools
+   python3 -m venv venv
+   ./venv/bin/pip install -r requirements.txt
+   ./venv/bin/playwright install chromium
+   source venv/bin/activate
    ```
 
-2. Isi akun Threads di `auth_config.json` (`username` & `password`), lalu login sekali untuk menyimpan session:
+2. Buat file `auth_config.json` (tidak ikut di-clone karena berisi kredensial) berisi akun Threads:
+   ```json
+   {
+     "username": "email_atau_username_kamu",
+     "password": "password_kamu"
+   }
+   ```
+
+3. Login sekali untuk menyimpan session:
    ```bash
    python login.py
    ```
    Tanpa login, Threads membatasi jumlah komentar yang bisa dimuat.
 
-3. Jalankan skrip `run.sh`:
+4. Sesuaikan `config.json` jika perlu, lalu jalankan scraper:
    ```bash
    ./run.sh
    ```
