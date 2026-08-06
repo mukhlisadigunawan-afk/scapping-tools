@@ -81,11 +81,7 @@ class ThreadsScraper:
 
         # 3. Dari Kata Kunci Pencarian (jika discovered_urls masih kurang dari max_posts)
         if self.search_keyword and len(discovered_urls) < self.max_posts:
-            # Siapkan variasi query jika kata kunci berisi beberapa istilah/hashtag
             query_terms = [self.search_keyword]
-            terms_split = [t.strip() for t in self.search_keyword.split() if len(t.strip()) > 1]
-            if len(terms_split) > 1:
-                query_terms.extend(terms_split)
 
             for term in query_terms:
                 if len(discovered_urls) >= self.max_posts:
@@ -244,6 +240,8 @@ class ThreadsScraper:
 
                 for index, url in enumerate(target_urls, 1):
                     post_id = self.extract_post_id(url)
+                    if not post_id:
+                        continue
                     console.print(f"\n[bold magenta]=== Processing Post [{index}/{len(target_urls)}] ===[/bold magenta]")
                     
                     comments = self.scrape_post_comments(page, url)

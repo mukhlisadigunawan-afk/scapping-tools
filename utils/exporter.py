@@ -30,7 +30,7 @@ def clean_df_for_csv(df: pd.DataFrame, strip_emojis: bool = True) -> pd.DataFram
     
     return df
 
-def export_dataset(db: DatabaseManager, output_dir: str = "./data", formats: List[str] = None, keyword: Optional[str] = None):
+def export_dataset(db: DatabaseManager, output_dir: str = "./data", formats: Optional[List[str]] = None, keyword: Optional[str] = None):
     """
     Mengekspor dataset komentar dari SQLite ke CSV dan/atau JSONL.
     - Setiap baris pada CSV dipastikan persis 1 baris (single line per record) tanpa newline terpisah
