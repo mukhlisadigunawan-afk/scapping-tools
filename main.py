@@ -33,7 +33,8 @@ def main():
     # 1. Load Konfigurasi
     config = load_config("config.json")
     
-    keyword = config.get("search_keyword", "")
+    search_keyword = config.get("search_keyword", [])
+    keywords = [search_keyword] if isinstance(search_keyword, str) else search_keyword
     max_posts = config.get("max_posts_per_run", 5)
     max_comments = config.get("max_comments_per_post", None)
     db_path = config.get("database_path", "threads_scraper.db")
@@ -41,7 +42,7 @@ def main():
     export_formats = config.get("export_formats", ["csv", "jsonl"])
 
     console.print(f"[bold]Konfigurasi Berhasil Dimuat:[/bold]")
-    console.print(f" • Keyword Pencarian : [bold green]'{keyword}'[/bold green]")
+    console.print(f" • Keyword Pencarian : [bold green]{keywords}[/bold green]")
     console.print(f" • Maksimal Post/Run : [bold green]{max_posts}[/bold green]")
     console.print(f" • Batas Komentar/Post: [bold green]{'Tidak Terbatas (Unlimited)' if max_comments is None or max_comments == 0 else max_comments}[/bold green]")
     console.print(f" • Database SQLite   : [bold green]{db_path}[/bold green]\n")
@@ -55,7 +56,11 @@ def main():
 
     # 4. Ekspor Dataset untuk AI Sentiment Analysis
     console.print("\n[bold cyan][Exporting Dataset][/bold cyan] Memproses ekspor dari SQLite ke CSV & JSONL...")
-    export_dataset(db=db, output_dir=output_dir, formats=export_formats, keyword=keyword)
+    if keywords:
+        for keyword in keywords:
+            export_dataset(db=db, output_dir=output_dir, formats=export_formats, keyword=keyword)
+    else:
+        export_dataset(db=db, output_dir=output_dir, formats=export_formats, keyword=None)
 
     console.print(Panel.fit(
         "[bold green]✔ Selesai! Scraping dan ekspor dataset berhasil dilakukan.[/bold green]\n"

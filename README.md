@@ -49,7 +49,13 @@ scrapping-tools/
    cd /Users/mac/Documents/scrapping-tools
    ```
 
-2. Jalankan skrip `run.sh`:
+2. Isi akun Threads di `auth_config.json` (`username` & `password`), lalu login sekali untuk menyimpan session:
+   ```bash
+   python login.py
+   ```
+   Tanpa login, Threads membatasi jumlah komentar yang bisa dimuat.
+
+3. Jalankan skrip `run.sh`:
    ```bash
    ./run.sh
    ```
@@ -62,7 +68,7 @@ Sebelum menjalankan scraper, sesuaikan opsi di file **`config.json`**:
 
 ```json
 {
-  "search_keyword": "MBG Makanan Bergizi Gratis",
+  "search_keyword": ["MBG Makanan Bergizi Gratis"],
   "target_profiles": [],
   "target_post_urls": [],
   "max_posts_per_run": 5,

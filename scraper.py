@@ -1,3 +1,4 @@
+import os
 import time
 import re
 import urllib.parse
@@ -14,7 +15,8 @@ class ThreadsScraper:
     def __init__(self, config: Dict[str, Any], db: DatabaseManager):
         self.config = config
         self.db = db
-        self.search_keyword = config.get("search_keyword", "")
+        search_keyword = config.get("search_keyword", [])
+        self.search_keywords = [search_keyword] if isinstance(search_keyword, str) else search_keyword
         self.target_profiles = config.get("target_profiles", [])
         self.target_post_urls = config.get("target_post_urls", [])
         self.max_posts = config.get("max_posts_per_run", 5)
@@ -23,10 +25,18 @@ class ThreadsScraper:
         self.remove_emojis = config.get("remove_emojis", True)
         self.scroll_delay = config.get("scroll_delay_seconds", 2.0)
         self.max_retries = config.get("max_scroll_retries", 5)
+        self.auth_state_path = config.get("auth_state_path", "auth_state.json")
+        self.url_keyword_map: Dict[str, str] = {}
 
     def extract_post_id(self, url: str) -> Optional[str]:
         """Ekstraksi post_id unik dari URL Threads."""
         match = re.search(r'/post/([A-Za-z0-9_-]+)', url)
+        if match:
+            return match.group(1)
+        return None
+
+    def extract_username(self, url: str) -> Optional[str]:
+        match = re.search(r'/@([A-Za-z0-9_.-]+)/post/', url)
         if match:
             return match.group(1)
         return None
@@ -80,17 +90,15 @@ class ThreadsScraper:
                     console.print(f"[red][ERROR][/red] Gagal mengakses profil {profile}: {e}")
 
         # 3. Dari Kata Kunci Pencarian (jika discovered_urls masih kurang dari max_posts)
-        if self.search_keyword and len(discovered_urls) < self.max_posts:
-            query_terms = [self.search_keyword]
-
-            for term in query_terms:
+        if self.search_keywords and len(discovered_urls) < self.max_posts:
+            for keyword in self.search_keywords:
                 if len(discovered_urls) >= self.max_posts:
                     break
 
-                encoded_keyword = urllib.parse.quote(term)
+                encoded_keyword = urllib.parse.quote(keyword)
                 search_url = f"https://www.threads.com/search?q={encoded_keyword}"
                 console.print(f"[bold cyan][Discovery][/bold cyan] Membuka pencarian keyword: [underline]{search_url}[/underline]")
-                
+
                 try:
                     page.goto(search_url, wait_until="domcontentloaded")
                     time.sleep(3.0)
@@ -103,14 +111,16 @@ class ThreadsScraper:
                         for link in links:
                             post_id = self.extract_post_id(link)
                             if post_id:
-                                clean_url = f"https://www.threads.com/post/{post_id}"
+                                username = self.extract_username(link)
+                                clean_url = f"https://www.threads.com/@{username}/post/{post_id}" if username else f"https://www.threads.com/post/{post_id}"
                                 if clean_url not in discovered_urls:
                                     if self.db.is_post_scraped(post_id):
                                         console.print(f"[yellow][SKIP][/yellow] Post ID [bold]{post_id}[/bold] sudah ada di SQLite.")
                                     else:
                                         discovered_urls.append(clean_url)
+                                        self.url_keyword_map[clean_url] = keyword
                                         new_found += 1
-                                        console.print(f"[green][FOUND][/green] Menemukan postingan pencarian ('{term}'): [bold]{clean_url}[/bold]")
+                                        console.print(f"[green][FOUND][/green] Menemukan postingan pencarian ('{keyword}'): [bold]{clean_url}[/bold]")
                                         if len(discovered_urls) >= self.max_posts:
                                             break
 
@@ -123,19 +133,27 @@ class ThreadsScraper:
                         time.sleep(self.scroll_delay)
 
                 except Exception as e:
-                    console.print(f"[red][ERROR][/red] Gagal pencarian keyword '{term}': {e}")
+                    console.print(f"[red][ERROR][/red] Gagal pencarian keyword '{keyword}': {e}")
 
         console.print(f"[bold green][Discovery Selesai][/bold green] Total [bold]{len(discovered_urls)}[/bold] postingan siap di-scrape.")
         return discovered_urls
 
-    def scrape_post_comments(self, page: Page, post_url: str) -> List[Dict[str, Any]]:
+    def scrape_post_comments(self, page: Page, post_url: str) -> Optional[List[Dict[str, Any]]]:
         """Mengambil seluruh/sebagian komentar dari postingan tertentu."""
         post_id = self.extract_post_id(post_url)
         if not post_id:
             return []
 
         console.print(f"\n[bold blue][Scraping Post][/bold blue] Membuka URL: {post_url}")
-        page.goto(post_url, wait_until="domcontentloaded")
+        try:
+            page.goto(post_url, wait_until="domcontentloaded", timeout=45000)
+        except Exception:
+            console.print(f"[yellow][RETRY][/yellow] Timeout membuka post {post_id}, mencoba ulang...")
+            try:
+                page.goto(post_url, wait_until="domcontentloaded", timeout=45000)
+            except Exception as e:
+                console.print(f"[red][ERROR][/red] Gagal membuka post {post_id} setelah retry: {e}")
+                return None
         time.sleep(3.0)
 
         scraped_comments = []
@@ -225,10 +243,17 @@ class ThreadsScraper:
                 headless=self.headless,
                 args=["--no-sandbox", "--disable-setuid-sandbox"]
             )
-            context = browser.new_context(
-                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                viewport={"width": 1280, "height": 900}
-            )
+            context_kwargs = {
+                "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "viewport": {"width": 1280, "height": 900}
+            }
+            if self.auth_state_path and os.path.exists(self.auth_state_path):
+                context_kwargs["storage_state"] = self.auth_state_path
+                console.print(f"[green][AUTH][/green] Menggunakan session login dari: {self.auth_state_path}")
+            else:
+                console.print("[yellow][AUTH][/yellow] Session login tidak ditemukan, scraping berjalan tanpa login (komentar mungkin terbatas). Jalankan 'python login.py' untuk login.")
+
+            context = browser.new_context(**context_kwargs)
             page = context.new_page()
 
             try:
@@ -245,13 +270,24 @@ class ThreadsScraper:
                     console.print(f"\n[bold magenta]=== Processing Post [{index}/{len(target_urls)}] ===[/bold magenta]")
                     
                     comments = self.scrape_post_comments(page, url)
-                    
+
+                    if comments is None:
+                        self.db.save_post(
+                            post_id=post_id,
+                            url=url,
+                            keyword=self.url_keyword_map.get(url, ""),
+                            comments_count=0,
+                            status="FAILED"
+                        )
+                        console.print(f"[red][SKIPPED][/red] Post {post_id} gagal dimuat, lanjut ke post berikutnya.")
+                        continue
+
                     if comments:
                         self.db.save_comments(comments)
                     self.db.save_post(
                         post_id=post_id,
                         url=url,
-                        keyword=self.search_keyword,
+                        keyword=self.url_keyword_map.get(url, ""),
                         comments_count=len(comments),
                         status="COMPLETED"
                     )

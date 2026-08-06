@@ -13,3 +13,7 @@ __pycache__/
 
 # System files
 .DS_Store
+
+# Login credentials & session (jangan pernah di-commit)
+auth_config.json
+auth_state.json

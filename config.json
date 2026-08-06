@@ -1,14 +1,20 @@
 {
-  "search_keyword": "saya akan lawan",
+  "search_keyword": [
+    "kepala bgn",
+    "MBG",
+    "bahlil",
+    "pajak"
+],
   "target_profiles": [],
   "target_post_urls": [],
-  "max_posts_per_run": 50,
-  "max_comments_per_post": 100,
+  "max_posts_per_run": 100,
+  "max_comments_per_post": 0,
   "remove_emojis": true,
   "headless": true,
   "scroll_delay_seconds": 2.0,
   "max_scroll_retries": 4,
   "database_path": "threads_scraper.db",
+  "auth_state_path": "auth_state.json",
   "export_formats": [
     "csv",
     "jsonl"

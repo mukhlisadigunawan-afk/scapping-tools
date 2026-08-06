@@ -48,10 +48,10 @@ class DatabaseManager:
             conn.commit()
 
     def is_post_scraped(self, post_id: str) -> bool:
-        """Cek apakah post_id sudah pernah di-scrape."""
+        """Cek apakah post_id sudah pernah di-scrape (post yang FAILED dianggap belum, agar dicoba ulang)."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT 1 FROM posts WHERE post_id = ?", (post_id,))
+            cursor.execute("SELECT 1 FROM posts WHERE post_id = ? AND status != 'FAILED'", (post_id,))
             return cursor.fetchone() is not None
 
     def save_post(self, post_id: str, url: str, keyword: str, comments_count: int, status: str = "COMPLETED"):
