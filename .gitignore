@@ -17,3 +17,6 @@ __pycache__/
 # Login credentials & session (jangan pernah di-commit)
 auth_config.json
 auth_state.json
+
+# Konfigurasi lokal (berisi youtube_api_key) — pakai config.json.example sebagai template
+config.json

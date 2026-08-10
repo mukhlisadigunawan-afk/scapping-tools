@@ -1,0 +1,51 @@
+{
+  // Platform yang mau di-scrape. Bisa 1 string atau array untuk jalan sekaligus dalam 1x run
+  // (search_keyword yang sama dipakai bersama semua platform yang dipilih).
+  // Pilihan valid: "threads" | "youtube" | ["threads", "youtube"]
+  "platform": ["threads"],
+
+  // Kata kunci pencarian (dipakai bersama oleh Threads & YouTube). Tiap string dicari sebagai 1 frasa utuh.
+  "search_keyword": [
+    "contoh kata kunci"
+  ],
+
+  // ===== Khusus Threads =====
+  // Daftar username Threads, mis. ["namaakun1", "namaakun2"]
+  "target_profiles": [],
+  // Daftar direct URL postingan Threads
+  "target_post_urls": [],
+  // 0 atau null = unlimited
+  "max_comments_per_post": 0,
+  "remove_emojis": true,
+  "headless": true,
+  "scroll_delay_seconds": 2.0,
+  "max_scroll_retries": 4,
+  // Dibuat otomatis oleh `python login.py`
+  "auth_state_path": "auth_state.json",
+
+  // ===== Khusus YouTube =====
+  // Handle "@nama", nama biasa, atau channel ID "UCxxxxxxxx"
+  "target_channels": [],
+  // Daftar direct URL video/short YouTube
+  "target_video_urls": [],
+  // 0 atau null = unlimited
+  "max_comments_per_video": 0,
+
+  // Filter tipe video hasil discovery (target_channels/search_keyword) berdasarkan heuristik durasi.
+  // Tidak berlaku untuk target_video_urls (URL eksplisit selalu diambil apa adanya).
+  // Pilihan valid:
+  //   "all"            -> ambil semua video (default)
+  //   "shorts_only"     -> cuma YouTube Shorts (durasi <= 60 detik)
+  //   "exclude_shorts"  -> skip Shorts, cuma video biasa
+  "youtube_video_type": "all",
+
+  // Isi dengan API key dari Google Cloud Console (aktifkan "YouTube Data API v3" dulu).
+  // File config.json ini gitignored, jadi aman diisi key asli di sini.
+  "youtube_api_key": "",
+
+  // ===== Umum (dipakai semua platform) =====
+  "max_posts_per_run": 5,
+  "database_path": "threads_scraper.db",
+  "export_formats": ["csv", "jsonl"],
+  "output_directory": "./data"
+}

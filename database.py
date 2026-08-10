@@ -26,9 +26,16 @@ class DatabaseManager:
                     keyword_search TEXT,
                     scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     comments_count INTEGER DEFAULT 0,
-                    status TEXT DEFAULT 'COMPLETED'
+                    status TEXT DEFAULT 'COMPLETED',
+                    platform TEXT NOT NULL DEFAULT 'threads'
                 )
             """)
+
+            # Migrasi untuk DB lama yang dibuat sebelum kolom 'platform' ada
+            try:
+                cursor.execute("ALTER TABLE posts ADD COLUMN platform TEXT NOT NULL DEFAULT 'threads'")
+            except sqlite3.OperationalError:
+                pass
 
             # Tabel Comments (Dataset Sentimen)
             cursor.execute("""
@@ -47,25 +54,29 @@ class DatabaseManager:
             """)
             conn.commit()
 
-    def is_post_scraped(self, post_id: str) -> bool:
-        """Cek apakah post_id sudah pernah di-scrape (post yang FAILED dianggap belum, agar dicoba ulang)."""
+    def is_post_scraped(self, post_id: str, platform: str = "threads") -> bool:
+        """Cek apakah post_id sudah pernah di-scrape di platform tsb (post yang FAILED dianggap belum, agar dicoba ulang)."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT 1 FROM posts WHERE post_id = ? AND status != 'FAILED'", (post_id,))
+            cursor.execute(
+                "SELECT 1 FROM posts WHERE post_id = ? AND platform = ? AND status != 'FAILED'",
+                (post_id, platform)
+            )
             return cursor.fetchone() is not None
 
-    def save_post(self, post_id: str, url: str, keyword: str, comments_count: int, status: str = "COMPLETED"):
+    def save_post(self, post_id: str, url: str, keyword: str, comments_count: int, status: str = "COMPLETED", platform: str = "threads"):
         """Menyimpan atau memperbarui data postingan."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO posts (post_id, url, keyword_search, comments_count, status)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO posts (post_id, url, keyword_search, comments_count, status, platform)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(post_id) DO UPDATE SET
                     comments_count = excluded.comments_count,
                     scraped_at = CURRENT_TIMESTAMP,
-                    status = excluded.status
-            """, (post_id, url, keyword, comments_count, status))
+                    status = excluded.status,
+                    platform = excluded.platform
+            """, (post_id, url, keyword, comments_count, status, platform))
             conn.commit()
 
     def save_comments(self, comments: List[Dict[str, Any]]):
@@ -92,14 +103,15 @@ class DatabaseManager:
                 ))
             conn.commit()
 
-    def get_comments_dataframe(self, keyword: Optional[str] = None) -> pd.DataFrame:
-        """Mengambil dataset komentar dari database (bisa difilter berdasarkan keyword_search)."""
+    def get_comments_dataframe(self, keyword: Optional[str] = None, platform: Optional[str] = None) -> pd.DataFrame:
+        """Mengambil dataset komentar dari database (bisa difilter berdasarkan keyword_search dan/atau platform)."""
         with self._get_connection() as conn:
             query = """
-                SELECT 
+                SELECT
                     c.comment_id,
                     c.post_id,
                     p.url as post_url,
+                    p.platform,
                     p.keyword_search,
                     c.username,
                     c.raw_text,
@@ -111,10 +123,16 @@ class DatabaseManager:
                 FROM comments c
                 LEFT JOIN posts p ON c.post_id = p.post_id
             """
+            conditions = []
             params = []
             if keyword:
-                query += " WHERE p.keyword_search = ?"
+                conditions.append("p.keyword_search = ?")
                 params.append(keyword)
-                
+            if platform:
+                conditions.append("p.platform = ?")
+                params.append(platform)
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+
             query += " ORDER BY c.scraped_at DESC"
             return pd.read_sql_query(query, conn, params=params)

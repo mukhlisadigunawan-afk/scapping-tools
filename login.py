@@ -17,15 +17,7 @@ def load_json(path: str) -> dict:
 
 def main():
     config = load_json("config.json")
-    auth_config = load_json("auth_config.json")
     auth_state_path = config.get("auth_state_path", "auth_state.json")
-
-    username = auth_config.get("username", "")
-    password = auth_config.get("password", "")
-
-    if not username or not password:
-        console.print("[bold red][ERROR][/bold red] Isi 'username' dan 'password' di auth_config.json terlebih dahulu.")
-        sys.exit(1)
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)
@@ -36,15 +28,7 @@ def main():
         page = context.new_page()
         page.goto("https://www.threads.com/login", wait_until="domcontentloaded")
 
-        try:
-            page.wait_for_selector("input[autocomplete='username']", timeout=15000)
-            page.fill("input[autocomplete='username']", username)
-            page.fill("input[autocomplete='current-password']", password)
-            page.click("button[type='submit']")
-        except Exception as e:
-            console.print(f"[yellow][NOTICE][/yellow] Form login otomatis tidak ditemukan ({e}).")
-
-        console.print("[bold cyan][ACTION REQUIRED][/bold cyan] Selesaikan proses login di jendela browser yang terbuka (termasuk verifikasi/2FA jika diminta).")
+        console.print("[bold cyan][ACTION REQUIRED][/bold cyan] Login manual di jendela browser yang terbuka (termasuk verifikasi/2FA jika diminta).")
         console.print("Setelah benar-benar masuk ke halaman utama Threads, tekan [bold]Enter[/bold] di sini untuk menyimpan session...")
         input()
 

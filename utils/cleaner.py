@@ -66,6 +66,26 @@ def clean_comment_text(raw_text: str, username: str = "", strip_emojis: bool = T
 
     return body_text.strip()
 
+def clean_youtube_comment_text(raw_text: str, strip_emojis: bool = True) -> str:
+    """
+    Ekstraksi teks bersih dari komentar YouTube (sudah plain text dari API,
+    tidak ada 'chrome' UI seperti pada DOM Threads) untuk AI Sentiment Analysis:
+    - Mengeliminasi emoji jika strip_emojis=True
+    - Merapikan whitespace/newline jadi 1 baris
+    """
+    if not raw_text:
+        return ""
+
+    # Tangani newline asli maupun marker literal '\n' teks yang dihasilkan sanitize_raw_text
+    body_text = str(raw_text).replace('\\n', '\n')
+    if strip_emojis:
+        body_text = remove_emojis(body_text)
+
+    body_text = re.sub(r'[\r\n\t]+', ' ', body_text)
+    body_text = re.sub(r'\s+', ' ', body_text)
+    return body_text.strip()
+
+
 def sanitize_raw_text(raw_text: str) -> str:
     """
     Mengubah newline fisik (\\n) pada raw_text menjadi spasi / string '\\n' visual
